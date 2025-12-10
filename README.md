@@ -2,6 +2,8 @@
 
 A music controller for Neovim with support for **Apple Music** and **Spotify**.
 
+![Docked UI with album artwork](assets/sidebar.png)
+
 ## Features
 
 - **Multiple backends**: Apple Music (macOS) and Spotify (cross-platform)
@@ -68,6 +70,14 @@ Just open the UI — no setup needed:
 ```
 
 Type `:Vinyl <Tab>` for all commands. See `:help vinyl-commands` for details.
+
+### Library Browsing
+
+Browse your library with Telescope, fzf-lua, or `vim.ui.select`:
+
+| ![Browse albums](assets/albums.png) | ![Browse playlists](assets/playlists.png) |
+|:---:|:---:|
+| `:Vinyl albums` | `:Vinyl playlists` |
 
 ## Keymaps
 
