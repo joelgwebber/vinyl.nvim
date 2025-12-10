@@ -1,0 +1,525 @@
+*vinyl.txt*	Music controller for Neovim
+
+Author:   Joel Webber
+License:  Apache 2.0
+
+==============================================================================
+CONTENTS                                                      *vinyl-contents*
+
+    1. Introduction ............................ |vinyl-introduction|
+    2. Requirements ............................ |vinyl-requirements|
+    3. Installation ............................ |vinyl-installation|
+    4. Configuration ........................... |vinyl-configuration|
+    5. Commands ................................ |vinyl-commands|
+    6. Keymaps ................................. |vinyl-keymaps|
+    7. Backends ................................ |vinyl-backends|
+    8. Highlight Groups ........................ |vinyl-highlights|
+    9. Lua API ................................. |vinyl-api|
+   10. Troubleshooting ......................... |vinyl-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                            *vinyl-introduction*
+
+vinyl.nvim is a music controller for Neovim with support for Apple Music
+(macOS) and Spotify (cross-platform with Premium).
+
+Features:
+- Multiple backends: Apple Music and Spotify
+- Docked UI with comprehensive track information
+- Album artwork display (Kitty graphics protocol)
+- Library browsing with Telescope/fzf-lua integration
+- Extended metadata (genre, year, composer, play count, etc.)
+- Real-time updates with async I/O (non-blocking)
+- Precise seeking and volume control
+
+==============================================================================
+2. REQUIREMENTS                                            *vinyl-requirements*
+
+- Neovim 0.8+
+- Apple Music backend: macOS + Music.app
+- Spotify backend: Spotify Premium + OAuth app credentials
+- Album artwork: Kitty terminal (optional)
+- Library browsing: Telescope or fzf-lua (optional, falls back to
+  |vim.ui.select|)
+
+Run |:checkhealth| vinyl to verify your setup.
+
+==============================================================================
+3. INSTALLATION                                            *vinyl-installation*
+
+With lazy.nvim: >lua
+    {
+      "yourusername/vinyl.nvim",
+      config = function()
+        require("vinyl").setup({
+          -- see |vinyl-configuration|
+        })
+      end,
+      keys = {
+        { "<leader>m<Space>", "<cmd>Vinyl play<CR>", desc = "Music: Play/pause" },
+        { "<leader>mm", "<cmd>Vinyl toggle<CR>", desc = "Music: Toggle UI" },
+        { "<leader>mn", "<cmd>Vinyl next<CR>", desc = "Music: Next track" },
+        { "<leader>mN", "<cmd>Vinyl prev<CR>", desc = "Music: Previous track" },
+        { "<leader>ms", "<cmd>Vinyl shuffle<CR>", desc = "Music: Toggle shuffle" },
+        { "<leader>mp", "<cmd>Vinyl playlists<CR>", desc = "Music: Playlists" },
+        { "<leader>ma", "<cmd>Vinyl albums<CR>", desc = "Music: Albums" },
+        { "<leader>mt", "<cmd>Vinyl tracks<CR>", desc = "Music: Tracks" },
+        { "<leader>mr", "<cmd>Vinyl artists<CR>", desc = "Music: Artists" },
+      },
+    }
+<
+
+==============================================================================
+4. CONFIGURATION                                          *vinyl-configuration*
+
+Call `require("vinyl").setup(opts)` with a table of options.
+
+Default configuration: >lua
+    require("vinyl").setup({
+      update_interval = 2000,  -- UI refresh rate in milliseconds
+      window = {
+        width = 56,            -- Docked window width in columns
+      },
+      artwork = {
+        enabled = true,        -- Enable album artwork (requires Kitty)
+        max_width_chars = 40,  -- Maximum width in character cells
+        max_height_chars = 20, -- Maximum height in character cells
+      },
+      keymaps = {
+        ui = { ... },          -- See |vinyl-config-keymaps|
+      },
+    })
+<
+                                                      *vinyl-config-update_interval*
+update_interval ~
+    Type: `number`
+    Default: `2000`
+
+    How often to refresh the UI in milliseconds. Lower values provide more
+    responsive progress bars but increase system load.
+
+                                                           *vinyl-config-window*
+window ~
+    Type: `table`
+
+    Window configuration options.
+
+    window.width ~
+        Type: `number`
+        Default: `56`
+
+        Width of the docked window in columns.
+
+                                                          *vinyl-config-artwork*
+artwork ~
+    Type: `table`
+
+    Album artwork configuration. Requires Kitty terminal.
+
+    artwork.enabled ~
+        Type: `boolean`
+        Default: `true`
+
+        Enable or disable album artwork display.
+
+    artwork.max_width_chars ~
+        Type: `number`
+        Default: `40`
+
+        Maximum artwork width in character cells.
+
+    artwork.max_height_chars ~
+        Type: `number`
+        Default: `20`
+
+        Maximum artwork height in character cells. Use half of width for
+        square aspect ratio due to character cell proportions.
+
+                                                          *vinyl-config-keymaps*
+keymaps ~
+    Type: `table`
+
+    Keymap configuration.
+
+    keymaps.ui ~
+        Type: `table`
+
+        UI window keymaps. Each key can be a string or table of strings.
+        Set to `""` (empty string) to disable a keymap.
+
+        Default: >lua
+            keymaps = {
+              ui = {
+                close = { "q", "<Esc>" },
+                play_pause = "<Space>",
+                next_track = "n",
+                prev_track = "N",
+                seek_forward = "l",       -- 5 seconds
+                seek_backward = "h",      -- 5 seconds
+                seek_forward_large = "L", -- 30 seconds
+                seek_backward_large = "H", -- 30 seconds
+                volume_up = "=",
+                volume_down = "-",
+                toggle_shuffle = "s",
+                show_help = "?",
+              },
+            }
+<
+        Example customization: >lua
+            require("vinyl").setup({
+              keymaps = {
+                ui = {
+                  play_pause = "p",     -- Change to 'p'
+                  close = { "q" },      -- Remove <Esc>
+                  show_help = "",       -- Disable help
+                },
+              },
+            })
+<
+
+                                                       *vinyl-disable-keymaps*
+vim.g.vinyl_no_default_keymaps ~
+    Type: `boolean`
+    Default: `false`
+
+    Set to `true` before the plugin loads to disable default keymaps.
+    You can then define your own keymaps using the |vinyl-commands|.
+>lua
+    vim.g.vinyl_no_default_keymaps = true
+<
+
+==============================================================================
+5. COMMANDS                                                    *vinyl-commands*
+
+All functionality is available via the `:Vinyl` command with Tab completion.
+
+                                                                       *:Vinyl*
+:Vinyl [subcommand]
+    Main command. Without arguments, equivalent to `:Vinyl toggle`.
+
+                                                                *:Vinyl-toggle*
+:Vinyl toggle
+    Toggle the music UI window.
+
+                                                                  *:Vinyl-play*
+:Vinyl play
+:Vinyl pause
+    Toggle play/pause.
+
+                                                                  *:Vinyl-next*
+:Vinyl next
+    Skip to next track.
+
+                                                                  *:Vinyl-prev*
+:Vinyl prev
+    Skip to previous track.
+
+                                                               *:Vinyl-shuffle*
+:Vinyl shuffle
+    Toggle shuffle mode.
+
+                                                             *:Vinyl-playlists*
+:Vinyl playlists
+    Browse playlists. Opens a picker (Telescope, fzf-lua, or vim.ui.select).
+    Select a playlist to start playback.
+
+                                                                *:Vinyl-albums*
+:Vinyl albums
+    Browse albums in your library.
+
+                                                                *:Vinyl-tracks*
+:Vinyl tracks
+    Browse tracks in your library.
+
+                                                               *:Vinyl-artists*
+:Vinyl artists
+    Browse artists in your library.
+
+                                                               *:Vinyl-backend*
+:Vinyl backend
+    Show current backend and available options.
+
+:Vinyl backend {name}
+    Switch to a specific backend. Valid names: `apple`, `spotify`.
+
+                                                         *:Vinyl-spotify-login*
+:Vinyl spotify-login
+    Start Spotify OAuth login flow. Prompts for Client ID, Client Secret,
+    and Redirect URI. Opens browser for authorization.
+
+                                                        *:Vinyl-spotify-logout*
+:Vinyl spotify-logout
+    Clear Spotify credentials and switch to Apple Music if available.
+
+                                                        *:Vinyl-spotify-status*
+:Vinyl spotify-status
+    Show Spotify authentication status and token expiration.
+
+                                                         *:Vinyl-debug-backend*
+:Vinyl debug-backend
+    Show backend capabilities (for debugging).
+
+                                                          *:Vinyl-debug-queue*
+:Vinyl debug-queue
+    Show queue data (for debugging).
+
+==============================================================================
+6. KEYMAPS                                                      *vinyl-keymaps*
+
+Default keymaps use the `<leader>m` prefix. Disable with:
+>lua
+    vim.g.vinyl_no_default_keymaps = true
+<
+
+GLOBAL KEYMAPS ~
+
+    Key               Command              Description ~
+    `<leader>m<Space>`  `:Vinyl play`          Play/pause
+    `<leader>mm`        `:Vinyl toggle`        Toggle UI
+    `<leader>mn`        `:Vinyl next`          Next track
+    `<leader>mN`        `:Vinyl prev`          Previous track
+    `<leader>ms`        `:Vinyl shuffle`       Toggle shuffle
+    `<leader>mp`        `:Vinyl playlists`     Browse playlists
+    `<leader>ma`        `:Vinyl albums`        Browse albums
+    `<leader>mt`        `:Vinyl tracks`        Browse tracks
+    `<leader>mr`        `:Vinyl artists`       Browse artists
+    `<leader>mb`        `:Vinyl backend`       Show backend
+
+UI KEYMAPS ~
+                                                           *vinyl-ui-keymaps*
+When the vinyl window is open (defaults shown, see |vinyl-config-keymaps|
+to customize):
+
+    Key      Action ~
+    `q`        Close UI
+    `<Esc>`    Close UI
+    `<Space>`  Play/pause
+    `n`        Next track
+    `N`        Previous track
+    `h`        Seek backward 5 seconds
+    `l`        Seek forward 5 seconds
+    `H`        Seek backward 30 seconds
+    `L`        Seek forward 30 seconds
+    `=`        Volume up
+    `-`        Volume down
+    `s`        Toggle shuffle
+    `?`        Show help
+
+==============================================================================
+7. BACKENDS                                                    *vinyl-backends*
+
+vinyl.nvim supports multiple music backends with automatic detection.
+
+                                                            *vinyl-backend-apple*
+APPLE MUSIC ~
+
+Requires macOS with Music.app installed. No setup needed - works out of the
+box if you're on macOS.
+
+Features:
+- Full playback control
+- Volume control
+- Library browsing (tracks, albums, artists, playlists)
+- Extended metadata (genre, year, composer, play count, bit rate)
+- Favorited/disliked status
+- Album artwork via AppleScript
+
+Limitations:
+- Queue shows playlist order, not actual playback queue when shuffle is on
+- macOS only
+
+                                                          *vinyl-backend-spotify*
+SPOTIFY ~
+
+Requires Spotify Premium and OAuth app credentials.
+
+Setup:
+
+1. Run `:Vinyl spotify-login`
+
+2. Create a Spotify App at https://developer.spotify.com/dashboard
+   - Click "Create app"
+   - Set Redirect URI to `http://127.0.0.1:8888/callback`
+   - Enable "Web API"
+   - Note your Client ID and Client Secret
+
+3. Enter credentials when prompted
+
+4. Authorize in browser (automatic redirect back)
+
+Features:
+- Full playback control
+- Library browsing (saved tracks, albums, artists, playlists)
+- Accurate queue even with shuffle enabled
+- Album artwork via URLs
+
+Limitations:
+- Requires Spotify Premium
+- No volume control (Spotify API limitation for some devices)
+- Rate limited (automatic backoff on 429 errors)
+
+                                                   *vinyl-backend-switching*
+SWITCHING BACKENDS ~
+
+The plugin auto-detects and saves your backend preference. To switch
+manually:
+>vim
+    :Vinyl backend spotify
+    :Vinyl backend apple
+<
+
+==============================================================================
+8. HIGHLIGHT GROUPS                                          *vinyl-highlights*
+
+Customize colors by setting highlight groups after your colorscheme:
+>lua
+    vim.api.nvim_set_hl(0, "VinylTitle", { fg = "#ff79c6", bold = true })
+<
+
+    Group                      Default Link   Description ~
+    `VinylTitle`                 Title          Track name
+    `VinylArtist`                Directory      Artist name
+    `VinylAlbum`                 Comment        Album name
+    `VinylProgress`              String         Progress bar (filled)
+    `VinylProgressEmpty`         Comment        Progress bar (empty)
+    `VinylTime`                  Number         Time display
+    `VinylLabel`                 Comment        Metadata labels
+    `VinylValue`                 Normal         Metadata values
+    `VinylMetaSpecial`           Special        Bit rate, play count
+    `VinylShuffle`               Function       Shuffle indicator
+    `VinylFavorite`              String         Favorited heart
+    `VinylDislike`               WarningMsg     Disliked heart
+    `VinylVolume`                Number         Volume percentage
+    `VinylVolumeIcon`            Special        Volume icon
+    `VinylQueueTrack`            Normal         Queue track name
+    `VinylQueueArtist`           Comment        Queue artist (dimmed)
+    `VinylQueueHeader`           Title          "Up Next" header
+    `VinylBorder`                FloatBorder    Window border
+    `VinylNormal`                Normal         Background
+
+Note: For backwards compatibility, highlight groups prefixed with
+`AppleMusic` (e.g., `AppleMusicTitle`) are also supported.
+
+==============================================================================
+9. LUA API                                                          *vinyl-api*
+
+The public API is available via `require("vinyl")`.
+
+                                                                 *vinyl.setup()*
+vinyl.setup({opts})
+    Initialize the plugin with configuration options.
+    See |vinyl-configuration| for available options.
+
+                                                            *vinyl.toggle_ui()*
+vinyl.toggle_ui()
+    Toggle the music UI window.
+
+                                                               *vinyl.open_ui()*
+vinyl.open_ui()
+    Open the music UI window.
+
+                                                              *vinyl.close_ui()*
+vinyl.close_ui()
+    Close the music UI window.
+
+                                                            *vinyl.play_pause()*
+vinyl.play_pause()
+    Toggle play/pause on current backend.
+
+                                                            *vinyl.next_track()*
+vinyl.next_track()
+    Skip to next track.
+
+                                                        *vinyl.previous_track()*
+vinyl.previous_track()
+    Skip to previous track.
+
+                                                        *vinyl.toggle_shuffle()*
+vinyl.toggle_shuffle()
+    Toggle shuffle mode.
+
+                                                        *vinyl.increase_volume()*
+vinyl.increase_volume()
+    Increase volume.
+
+                                                        *vinyl.decrease_volume()*
+vinyl.decrease_volume()
+    Decrease volume.
+
+                                                          *vinyl.get_backend()*
+vinyl.get_backend()
+    Returns the current backend instance, or `nil` if none available.
+
+                                                          *vinyl.use_backend()*
+vinyl.use_backend({name})
+    Switch to a specific backend by name ("apple" or "spotify").
+    Returns `true` on success.
+
+                                                        *vinyl.browse_tracks()*
+vinyl.browse_tracks()
+    Open track browser.
+
+                                                        *vinyl.browse_albums()*
+vinyl.browse_albums()
+    Open album browser.
+
+                                                       *vinyl.browse_artists()*
+vinyl.browse_artists()
+    Open artist browser.
+
+                                                     *vinyl.browse_playlists()*
+vinyl.browse_playlists()
+    Open playlist browser.
+
+                                                        *vinyl.spotify_login()*
+vinyl.spotify_login()
+    Start Spotify OAuth login flow.
+
+                                                       *vinyl.spotify_logout()*
+vinyl.spotify_logout()
+    Clear Spotify credentials.
+
+                                                       *vinyl.spotify_status()*
+vinyl.spotify_status()
+    Print Spotify authentication status.
+
+                                                        *vinyl.debug_backend()*
+vinyl.debug_backend()
+    Print backend capabilities.
+
+                                                         *vinyl.debug_queue()*
+vinyl.debug_queue()
+    Print queue debug information.
+
+==============================================================================
+10. TROUBLESHOOTING                                      *vinyl-troubleshooting*
+
+Run `:checkhealth vinyl` to diagnose common issues.
+
+ALBUM ARTWORK NOT SHOWING ~
+
+1. Verify Kitty terminal: `echo $TERM` should show `xterm-kitty`
+2. Check artwork is enabled in config (default: true)
+3. Ensure track has artwork in the music app
+
+UI NOT UPDATING ~
+
+1. Check music app is running
+2. Try closing and reopening UI (`:Vinyl toggle` twice)
+3. Increase `update_interval` if experiencing performance issues
+
+SPOTIFY NOT WORKING ~
+
+1. Run `:Vinyl spotify-status` to check auth status
+2. Ensure you have Spotify Premium (required for playback control)
+3. Re-authenticate with `:Vinyl spotify-login`
+4. Check redirect URI matches exactly: `http://127.0.0.1:8888/callback`
+
+LIBRARY BROWSING SLOW ~
+
+1. Large libraries may take time on first load
+2. Install Telescope or fzf-lua for better performance
+3. Apple Music library is fetched via AppleScript (slower than Spotify API)
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

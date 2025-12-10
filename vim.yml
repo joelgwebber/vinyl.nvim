@@ -1,0 +1,8 @@
+# Selene vim standard library
+# Defines globals available in Neovim Lua
+---
+base: lua51
+name: vim
+globals:
+  vim:
+    any: true

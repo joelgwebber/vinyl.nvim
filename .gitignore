@@ -1,0 +1,17 @@
+# Neovim
+.tests/
+doc/tags
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Lua
+*.luac
+luac.out
