@@ -123,3 +123,26 @@ selene lua/ plugin/    # Lint
 :lua require('vinyl').debug_queue()
 :checkhealth vinyl
 ```
+
+## Beads
+
+1. File/update issues for remaining work
+Agents should proactively create issues for discovered bugs, TODOs, and follow-up tasks
+Close completed issues and update status for in-progress work
+
+2. Run quality gates (if applicable)
+Tests, linters, builds - only if code changes were made
+File P0 issues if builds are broken
+
+3. Sync the issue tracker carefully
+Work methodically to ensure local and remote issues merge safely
+Handle git conflicts thoughtfully (sometimes accepting remote and re-importing)
+Goal: clean reconciliation where no issues are lost
+
+4. Verify clean state
+All changes committed and pushed
+No untracked files remain
+
+5. Choose next work
+Provide a formatted prompt for the next session with context
+

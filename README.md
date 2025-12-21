@@ -138,14 +138,6 @@ Full documentation is available via `:help vinyl`:
 - `:help vinyl-highlights` — Theming
 - `:help vinyl-api` — Lua API
 
-## Roadmap
-
-- [ ] Repeat mode control
-- [ ] Queue navigation
-- [ ] Playlist management
-- [ ] Lyrics display
-- [ ] Statusline integration
-
 ## License
 
 Apache 2.0
